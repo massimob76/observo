@@ -1,5 +1,6 @@
 package observo;
 
+import observo.conf.ObservoConf;
 import observo.utils.Serializer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
@@ -9,32 +10,40 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class ObservableImpl<T extends Serializable> implements Observable<T> {
-    private static final long NOTIFICATION_TIMEOUT_MS = 500;
-    private static final long LOCK_TIMEOUT_MS = 1000;
     private static final Logger LOGGER = LoggerFactory.getLogger(ObservableImpl.class);
 
     private final CuratorFramework client;
+    private final ObservoConf observoConf;
     private final String hostname;
     private final String path;
     private final String observersPath;
     private final Class<T> dataType;
-    private final ConcurrentHashMap<Observer<T>, ObserverWatcher> observers = new ConcurrentHashMap<>();
+    private final Map<Observer<T>, ObserverWatcher> observers = new ConcurrentHashMap<>();
     private final InterProcessSemaphoreMutex lock;
 
-    public ObservableImpl(CuratorFramework client, String hostname, String path, Class<T> dataType) {
+    public ObservableImpl(CuratorFramework client, ObservoConf observoConf, String hostname, String path, Class<T> dataType) {
         this.client = client;
+        this.observoConf = observoConf;
         this.hostname = hostname;
         this.path = path;
         this.observersPath = path + "/observers";
         this.dataType = dataType;
         this.lock = new InterProcessSemaphoreMutex(client, path + "/lock");
         createObserversPathIfItDoesNotExists();
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                unregisterAllObservers();
+            }
+        });
     }
 
     private void createObserversPathIfItDoesNotExists() {
@@ -55,9 +64,9 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     public void registerObserver(Observer<T> observer) {
         try {
             // 1. acquire lock
-            boolean acquired = lock.acquire(LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
             if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", LOCK_TIMEOUT_MS);
+                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
             }
 
             // 2. create observer if does not exists
@@ -89,9 +98,9 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     public void unregisterObserver(Observer<T> observer) {
         try {
             // 1. acquire lock
-            boolean acquired = lock.acquire(LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
             if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", LOCK_TIMEOUT_MS);
+                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
             }
 
             // 2. delete observer node
@@ -123,6 +132,11 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     }
 
     @Override
+    public void unregisterAllObservers() {
+        observers.keySet().forEach(observer -> unregisterObserver(observer));
+    }
+
+    @Override
     public void notifyObservers() {
         notifyObservers(null);
     }
@@ -131,9 +145,9 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     public void notifyObservers(T data) {
         try {
             // 1. acquire lock
-            boolean acquired = lock.acquire(LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
             if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", LOCK_TIMEOUT_MS);
+                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
             }
 
             // 2. get children and set watchers
@@ -154,11 +168,11 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
             client.setData().forPath(path, Serializer.serialize(data));
 
             // 4. await for all the child watchers to fire
-            boolean notified = latch.await(NOTIFICATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            boolean notified = latch.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
             if (notified) {
                 LOGGER.info("observers were successfully notified");
             } else {
-                LOGGER.error("could not notify all the observers within {} ms", NOTIFICATION_TIMEOUT_MS);
+                LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
             }
 
         } catch(Exception e) {

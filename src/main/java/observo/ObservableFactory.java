@@ -1,5 +1,6 @@
 package observo;
 
+import observo.conf.ObservoConf;
 import observo.conf.ZookeeperConf;
 import observo.utils.HostnameProvider;
 import observo.utils.HostnameProviderImpl;
@@ -16,12 +17,14 @@ public class ObservableFactory {
     private final CuratorFramework client;
     private final RetryNTimes retryPolicy;
     private final String hostname;
+    private final ObservoConf observoConf;
 
-    public ObservableFactory(ZookeeperConf zookeeperConf, String nameSpaceSuffix) {
-        this(zookeeperConf, nameSpaceSuffix, new HostnameProviderImpl());
+    public ObservableFactory(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix) {
+        this(zookeeperConf, observoConf, nameSpaceSuffix, new HostnameProviderImpl());
     }
 
-    public ObservableFactory(ZookeeperConf zookeeperConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
+    public ObservableFactory(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
+        this.observoConf = observoConf;
         retryPolicy = new RetryNTimes(zookeeperConf.getRetryTimes(), zookeeperConf.getRetryMsSleep());
         CuratorFramework client = CuratorFrameworkFactory.builder()
                 .namespace(NAMESPACE_PREFIX + "/" + nameSpaceSuffix)
@@ -37,7 +40,7 @@ public class ObservableFactory {
 
     public <T extends Serializable> Observable<T> createObservable(String name, Class<T> dataType) {
         String path = "/" + name;
-        return new ObservableImpl<>(client, hostname, path, dataType);
+        return new ObservableImpl<>(client, observoConf, hostname, path, dataType);
     }
 
 }

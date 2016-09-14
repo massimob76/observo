@@ -6,6 +6,8 @@ interface Observable<T> {
 
     void unregisterObserver(Observer<T> observer);
 
+    void unregisterAllObservers();
+
     void notifyObservers();
 
     void notifyObservers(T data);

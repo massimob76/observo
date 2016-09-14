@@ -1,11 +1,9 @@
 package observo;
 
+import observo.conf.ObservoConf;
 import observo.conf.ZookeeperConf;
 import org.apache.curator.test.TestingServer;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -18,10 +16,13 @@ import static org.junit.Assert.assertThat;
 
 public class ObservableImplITest {
 
-    private static TestingServer zkServer;
-    private static final int RETRY_TIMES = 4;
-    private static final int RETRY_MS_SLEEP = 1000;
+    private static final long NOTIFICATION_TIMEOUT_MS = 500;
+    private static final long LOCK_TIMEOUT_MS = 1000;
+    private static final int RETRY_TIMES = 1;
+    private static final int RETRY_MS_SLEEP = 10;
     private static final String NAME_SPACE_SUFFIX = "testApp";
+
+    private static TestingServer zkServer;
     private static Observable<News> newsFeeds;
     private static ObservableFactory factory;
 
@@ -29,7 +30,13 @@ public class ObservableImplITest {
     public static void setUpClass() throws Exception {
         zkServer = new TestingServer();
         ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), RETRY_TIMES, RETRY_MS_SLEEP);
-        factory = new ObservableFactory(zookeeperConf, NAME_SPACE_SUFFIX);
+        ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
+        factory = new ObservableFactory(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
+    }
+
+    @AfterClass
+    public static void tearDownClass() throws IOException {
+        zkServer.stop();
     }
 
     @Before
@@ -37,9 +44,9 @@ public class ObservableImplITest {
         newsFeeds = factory.createObservable("news", News.class);
     }
 
-    @AfterClass
-    public static void tearDownClass() throws IOException {
-        zkServer.stop();
+    @After
+    public void tearDown() {
+        newsFeeds.unregisterAllObservers();
     }
 
     @Test
