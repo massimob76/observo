@@ -4,9 +4,9 @@ interface Observable<T> {
 
     void registerObserver(Observer<T> observer);
 
-    void unregisterObserver(Observer observer);
+    void unregisterObserver(Observer<T> observer);
 
-    void notifyObservers() throws Exception;
+    void notifyObservers();
 
-    void notifyObservers(T data) throws Exception;
+    void notifyObservers(T data);
 }
