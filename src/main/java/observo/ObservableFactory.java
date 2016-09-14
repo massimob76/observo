@@ -2,6 +2,7 @@ package observo;
 
 import observo.conf.ZookeeperConf;
 import observo.utils.HostnameProvider;
+import observo.utils.HostnameProviderImpl;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryNTimes;
@@ -16,6 +17,9 @@ public class ObservableFactory {
     private final RetryNTimes retryPolicy;
     private final String hostname;
 
+    public ObservableFactory(ZookeeperConf zookeeperConf, String nameSpaceSuffix) {
+        this(zookeeperConf, nameSpaceSuffix, new HostnameProviderImpl());
+    }
 
     public ObservableFactory(ZookeeperConf zookeeperConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
         retryPolicy = new RetryNTimes(zookeeperConf.getRetryTimes(), zookeeperConf.getRetryMsSleep());

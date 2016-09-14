@@ -1,7 +1,6 @@
 package observo;
 
 import observo.conf.ZookeeperConf;
-import observo.utils.HostnameProvider;
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -30,8 +29,7 @@ public class ObservableImplITest {
     public static void setUpClass() throws Exception {
         zkServer = new TestingServer();
         ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), RETRY_TIMES, RETRY_MS_SLEEP);
-        HostnameProvider hostnameProvider = () -> "hostname";
-        factory = new ObservableFactory(zookeeperConf, NAME_SPACE_SUFFIX, hostnameProvider);
+        factory = new ObservableFactory(zookeeperConf, NAME_SPACE_SUFFIX);
     }
 
     @Before
