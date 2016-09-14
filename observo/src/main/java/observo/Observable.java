@@ -1,6 +1,6 @@
 package observo;
 
-interface Observable<T> {
+public interface Observable<T> {
 
     void registerObserver(Observer<T> observer);
 
