@@ -1,4 +1,4 @@
-package server;
+package news;
 
 import observo.Observer;
 
@@ -8,19 +8,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class NewsObserver implements Observer<News> {
 
     private volatile News latest;
-    private List<News> soFarReceivedNews = new CopyOnWriteArrayList<>();
+    private List<News> newsReceivedSoFar = new CopyOnWriteArrayList<>();
 
     @Override
     public void update(News news) {
         latest = news;
-        soFarReceivedNews.add(news);
+        newsReceivedSoFar.add(news);
     }
 
     public News getLatest() {
         return latest;
     }
 
-    public List<News> getSoFarReceivedNews() {
-        return soFarReceivedNews;
+    public List<News> getNewsReceivedSoFar() {
+        return newsReceivedSoFar;
     }
 }

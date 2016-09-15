@@ -1,4 +1,6 @@
-package server;
+package news;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 
@@ -7,7 +9,7 @@ public class News implements Serializable {
     private final String title;
     private final String content;
 
-    public News(String title, String content) {
+    public News(@JsonProperty("title") String title, @JsonProperty("content") String content) {
         this.title = title;
         this.content = content;
     }

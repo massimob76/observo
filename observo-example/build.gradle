@@ -1,6 +1,15 @@
 
 // Apply the java plugin to add support for Java
 apply plugin: 'java'
+apply plugin: 'java-library-distribution'
+apply plugin: 'jetty'
+
+jettyRun {
+    doFirst {
+//        System.setProperty("BROWSER", "blah")
+    }
+    contextPath = ""
+}
 
 // In this section you declare where to find the dependencies of your project
 repositories {
@@ -12,4 +21,7 @@ repositories {
 // In this section you declare the dependencies for your production and test code
 dependencies {
     compile project(':observo')
+    compile 'org.slf4j:slf4j-api:1.7.21'
+    compile 'org.glassfish.jersey.containers:jersey-container-servlet:2.23.2'
+    compile 'org.glassfish.jersey.media:jersey-media-json-jackson:2.23.2'
 }
