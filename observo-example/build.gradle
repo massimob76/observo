@@ -2,14 +2,9 @@
 // Apply the java plugin to add support for Java
 apply plugin: 'java'
 apply plugin: 'java-library-distribution'
-apply plugin: 'jetty'
+apply plugin: 'application'
 
-jettyRun {
-    doFirst {
-//        System.setProperty("BROWSER", "blah")
-    }
-    contextPath = ""
-}
+mainClassName = "NewsServer"
 
 // In this section you declare where to find the dependencies of your project
 repositories {
@@ -24,4 +19,11 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.21'
     compile 'org.glassfish.jersey.containers:jersey-container-servlet:2.23.2'
     compile 'org.glassfish.jersey.media:jersey-media-json-jackson:2.23.2'
+    compile 'org.eclipse.jetty:jetty-server:9.4.0.M1'
+    compile 'org.eclipse.jetty:jetty-servlet:9.4.0.M1'
+}
+
+task buildDockerImage(type:Exec, dependsOn: distTar) {
+    group 'Docker'
+    commandLine 'docker', 'build', '-t', 'observo-example', '.'
 }
