@@ -10,7 +10,7 @@ You will need to have an instance of zookeeper running
 
 ## How to run it
 ```sh
-$ ./gradlew jettyRun -DzkConnectionString=localhost:2181
+$ ./gradlew run -DzkConnectionString=localhost:2181
 ```
 replace the **zkConnectionString** as opportune pointing to your running zookeeper instance.
 If *zkConnectionString* is omitted it will default to *localhost:2181*

@@ -1,4 +1,4 @@
-package news;
+package observoexample.news;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

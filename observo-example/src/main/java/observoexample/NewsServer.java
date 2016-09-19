@@ -1,4 +1,7 @@
-import api.NewsApi;
+package observoexample;
+
+import observoexample.api.NewsApi;
+import observoexample.services.NewsService;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -15,6 +18,8 @@ public class NewsServer {
         ServletHolder jerseyServlet = handler.addServlet(ServletContainer.class, "/*");
         jerseyServlet.setInitOrder(0);
         jerseyServlet.setInitParameter("jersey.config.server.provider.classnames", NewsApi.class.getCanonicalName());
+
+        NewsApi.setNewsService(new NewsService());
 
         Server server = new Server(PORT);
         server.setHandler(handler);

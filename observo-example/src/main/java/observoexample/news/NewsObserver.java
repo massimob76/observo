@@ -1,4 +1,4 @@
-package news;
+package observoexample.news;
 
 import observo.Observer;
 

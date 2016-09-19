@@ -1,7 +1,7 @@
-package services;
+package observoexample.services;
 
-import news.News;
-import news.NewsObserver;
+import observoexample.news.News;
+import observoexample.news.NewsObserver;
 import observo.Observable;
 import observo.ObservableFactory;
 import observo.conf.ObservoConf;
