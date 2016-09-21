@@ -8,17 +8,17 @@ import java.util.Arrays;
 
 public class DockerInterface {
 
-    private static final int NO_OF_SERVERS = 3;
-
     private int[] ports;
+    private int totalNoServers;
 
-    public void startServers() throws IOException, InterruptedException {
+    public void startServers(int totalNoServers) throws IOException, InterruptedException {
+        this.totalNoServers = totalNoServers;
         File observoExampleDir = getObservoExampleDirectory();
 
-        Process p = Runtime.getRuntime().exec("./example-server.sh start " + NO_OF_SERVERS, null, observoExampleDir);
+        Process p = Runtime.getRuntime().exec("./example-server.sh start " + totalNoServers, null, observoExampleDir);
         p.waitFor();
 
-        p = Runtime.getRuntime().exec("./example-server.sh ports " + NO_OF_SERVERS, null, observoExampleDir);
+        p = Runtime.getRuntime().exec("./example-server.sh ports " + totalNoServers, null, observoExampleDir);
         p.waitFor();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -49,8 +49,12 @@ public class DockerInterface {
         p.waitFor();
     }
 
-    public int[] getPorts() {
-        return ports;
+    public String getLoadBalancerHostPort() {
+        return "localhost:80";
+    }
+
+    public String getSpecificHostPort(int serverNo) {
+        return "localhost:" + ports[serverNo - 1];
     }
 
     private File getObservoExampleDirectory() {
@@ -60,10 +64,13 @@ public class DockerInterface {
 
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        int noOfServers = 3;
         DockerInterface dockerInterface = new DockerInterface();
         System.out.println("about to start everything");
-        dockerInterface.startServers();
-        System.out.println("portsString: " + Arrays.toString(dockerInterface.getPorts()));
+        dockerInterface.startServers(noOfServers);
+        System.out.println("server 1: " + dockerInterface.getSpecificHostPort(1));
+        System.out.println("server 2: " + dockerInterface.getSpecificHostPort(2));
+        System.out.println("server 3: " + dockerInterface.getSpecificHostPort(3));
 
         Thread.sleep(5000);
         System.out.println("about to stop server 2");
