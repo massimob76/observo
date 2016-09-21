@@ -12,3 +12,12 @@ services:
 
   zookeeper:
     image: zookeeper:latest
+
+  loadbalancer:
+    image: dockercloud/haproxy
+    links:
+      - server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 80:80
