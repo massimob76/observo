@@ -22,11 +22,34 @@ public class News implements Serializable {
         return content;
     }
 
+    public static News generateNewsForTesting() {
+        return new News("title " + System.currentTimeMillis(), "content");
+    }
+
     @Override
     public String toString() {
         return "News{" +
                 "title='" + title + '\'' +
                 ", content='" + content + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof News)) return false;
+
+        News news = (News) o;
+
+        if (title != null ? !title.equals(news.title) : news.title != null) return false;
+        return content != null ? content.equals(news.content) : news.content == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = title != null ? title.hashCode() : 0;
+        result = 31 * result + (content != null ? content.hashCode() : 0);
+        return result;
     }
 }

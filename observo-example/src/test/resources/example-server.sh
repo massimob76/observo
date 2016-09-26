@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 
 function startServers {
-    docker-compose scale server=$1 zookeeper=1
+    noOfServers=$1
+    docker-compose up -d --build
+    docker-compose scale server=$noOfServers
+
+    ports=""
+    for ((i=1;i<=noOfServers;i++)); do
+        ports=$"$ports$(retrievePort $i) "
+    done
+    echo "$ports"
 }
 
 function stopServers {
@@ -11,6 +19,7 @@ function stopServers {
 function startSpecificServer {
     instance=$1
     docker start $(getServerName $instance)
+    echo "$(retrievePort $instance)"
 }
 
 function stopSpecificServer {
@@ -18,15 +27,10 @@ function stopSpecificServer {
     docker stop $(getServerName $instance)
 }
 
-function retrievePorts {
-    serverInstances=$1
-    ports=""
-    for ((i=1;i<=serverInstances;i++)); do
-        server_name=$(getServerName $i)
-        port=$(cut -d ":" -f 2 <<< "$(docker port $server_name 8080)")
-        ports=$"$ports$port "
-    done
-    echo "$ports"
+function retrievePort {
+    server_name=$(getServerName $1)
+    port=$(cut -d ":" -f 2 <<< "$(docker port $server_name 8080)")
+    echo $port
 }
 
 function getServerName {
@@ -55,12 +59,8 @@ stopSpecificServer)
     echo "stopping server instance $serverInstance"
     stopSpecificServer $serverInstance
     ;;
-ports)
-    instances=$2
-    echo "$(retrievePorts instances)"
-    ;;
 *)
     echo "Error, wrong argument!!!"
-    echo "$0 [start|stop|startSpecificServer|stopSpecificServer|ports] [instances]"
+    echo "$0 [start|stop|startSpecificServer|stopSpecificServer] [instances]"
     ;;
 esac

@@ -51,9 +51,6 @@ public class ObservableImplITest {
 
     @Test
     public void registerShouldRegisterAnObserver() {
-        System.out.println(Thread.currentThread().getContextClassLoader().getResource("."));
-        System.out.println(Thread.currentThread().getContextClassLoader().getResource("log4j.properties"));
-
         Observer<News> observer = data -> {};
         newsFeeds.registerObserver(observer);
 
