@@ -56,7 +56,7 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
         }
     }
 
-    public Set<Observer<T>> getObservers() {
+    Set<Observer<T>> getObservers() {
         return observers.keySet();
     }
 
@@ -72,7 +72,6 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
             // 2. create observer if does not exists
             String childPath = generateUniqueChildPath();
             ObserverWatcher observerWatcher = new ObserverWatcher(client, path, childPath, observer, dataType);
-            observerWatcher.createNodePath();
 
             // 3. set watcher on data
             observers.put(observer, observerWatcher);
@@ -109,8 +108,6 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
                 LOGGER.error("the observer {} was found within the list of registered observers {}", observer, observers.keySet());
 
             } else {
-                observerWatcher.deleteNodePath();
-
                 // 3. disable watcher
                 observerWatcher.disable();
             }

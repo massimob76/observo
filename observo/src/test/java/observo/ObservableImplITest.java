@@ -31,7 +31,7 @@ public class ObservableImplITest {
         zkServer = new TestingServer();
         ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), RETRY_TIMES, RETRY_MS_SLEEP);
         ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
-        factory = new ObservableFactory(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
+        factory = ObservableFactory.instance(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
     }
 
     @AfterClass

@@ -25,7 +25,7 @@ public class NewsService {
         ZookeeperConf zookeeperConf = new ZookeeperConf(getZkConnectionString(), RETRY_TIMES, RETRY_MS_SLEEP);
         ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
         String nameSpaceSuffix = "observo-example";
-        ObservableFactory observableFactory = new ObservableFactory(zookeeperConf, observoConf, nameSpaceSuffix);
+        ObservableFactory observableFactory = ObservableFactory.instance(zookeeperConf, observoConf, nameSpaceSuffix);
         observable = observableFactory.createObservable("news", News.class);
 
         newsObserver = new NewsObserver();

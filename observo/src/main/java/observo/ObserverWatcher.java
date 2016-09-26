@@ -21,25 +21,17 @@ public class ObserverWatcher<T extends Serializable> implements CuratorWatcher {
     private final Class<T> dataType;
     private volatile boolean enabled = true;
 
-    public ObserverWatcher(CuratorFramework client, String path, String childPath, Observer<T> observer, Class<T> dataType) {
+    public ObserverWatcher(CuratorFramework client, String path, String childPath, Observer<T> observer, Class<T> dataType) throws Exception {
         this.client = client;
         this.path = path;
         this.childPath = childPath;
         this.observer = observer;
         this.dataType = dataType;
+        createNodePath();
     }
 
-    public void createNodePath() throws Exception {
-        if (client.checkExists().forPath(childPath) == null) {
-            client.create().forPath(childPath);
-        }
-    }
-
-    public void deleteNodePath() throws Exception {
-        client.delete().forPath(childPath);
-    }
-
-    public void disable() {
+    public void disable() throws Exception {
+        deleteNodePath();
         enabled = false;
     }
 
@@ -64,6 +56,16 @@ public class ObserverWatcher<T extends Serializable> implements CuratorWatcher {
         } else {
             LOGGER.debug("watcher is disabled; no action will be performed");
         }
+    }
+
+    private void createNodePath() throws Exception {
+        if (client.checkExists().forPath(childPath) == null) {
+            client.create().forPath(childPath);
+        }
+    }
+
+    private void deleteNodePath() throws Exception {
+        client.delete().forPath(childPath);
     }
 
 }

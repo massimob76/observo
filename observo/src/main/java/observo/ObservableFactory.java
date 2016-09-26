@@ -13,17 +13,14 @@ import java.io.Serializable;
 public class ObservableFactory {
 
     private static final String NAMESPACE_PREFIX = "observo";
+    private static ObservableFactory factory;
 
     private final CuratorFramework client;
     private final RetryNTimes retryPolicy;
     private final String hostname;
     private final ObservoConf observoConf;
 
-    public ObservableFactory(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix) {
-        this(zookeeperConf, observoConf, nameSpaceSuffix, new HostnameProviderImpl());
-    }
-
-    public ObservableFactory(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
+    private ObservableFactory(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
         this.observoConf = observoConf;
         retryPolicy = new RetryNTimes(zookeeperConf.getRetryTimes(), zookeeperConf.getRetryMsSleep());
         CuratorFramework client = CuratorFrameworkFactory.builder()
@@ -36,6 +33,17 @@ public class ObservableFactory {
 
         this.client = client;
         this.hostname = hostnameProvider.getHostname();
+    }
+
+    public static ObservableFactory instance(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix) {
+        return instance(zookeeperConf, observoConf, nameSpaceSuffix, new HostnameProviderImpl());
+    }
+
+    public static ObservableFactory instance(ZookeeperConf zookeeperConf, ObservoConf observoConf, String nameSpaceSuffix, HostnameProvider hostnameProvider) {
+        if (factory == null) {
+            factory = new ObservableFactory(zookeeperConf, observoConf, nameSpaceSuffix, hostnameProvider);
+        }
+        return factory;
     }
 
     public <T extends Serializable> Observable<T> createObservable(String name, Class<T> dataType) {
