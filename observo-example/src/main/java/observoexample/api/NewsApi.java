@@ -39,6 +39,14 @@ public class NewsApi {
         return Response.ok(latest, MediaType.APPLICATION_JSON_TYPE).build();
     }
 
+    @GET
+    @Path("/latest-second")
+    public Response getLatestNewsSecond() {
+        LOGGER.debug("called getLatestNewsSecond...");
+        News latest = newsService.getNewsSecondObserver().getLatest();
+        return Response.ok(latest, MediaType.APPLICATION_JSON_TYPE).build();
+    }
+
     @POST
     @Path("/publish")
     @Consumes(MediaType.APPLICATION_JSON)

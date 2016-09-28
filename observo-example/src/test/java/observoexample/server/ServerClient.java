@@ -10,6 +10,7 @@ public class ServerClient {
 
     private static final SimpleHttpClient simpleHttpClient = new SimpleHttpClient();
     private static final String LATEST = "/news/latest";
+    private static final String LATEST_SECOND = "/news/latest-second";
     private static final String ALL = "/news/all";
     private static final String PUBLISH = "/news/publish";
 
@@ -25,6 +26,10 @@ public class ServerClient {
 
     public News getLatestNews() throws IOException {
         return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST, News.class);
+    }
+
+    public News getLatestNewsSecond() throws IOException {
+        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST_SECOND, News.class);
     }
 
     public News getLatestNewsFromServer(int serverNo) throws IOException {

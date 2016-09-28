@@ -36,6 +36,7 @@ public class NewsPropagatationITest {
         News news = generateNewsForTesting();
         serverClient.publishNews(news);
         assertThat(serverClient.getLatestNews(), is(news));
+        assertThat(serverClient.getLatestNewsSecond(), is(news));
     }
 
     @Test

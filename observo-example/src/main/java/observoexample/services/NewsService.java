@@ -20,6 +20,7 @@ public class NewsService {
 
     private final Observable<News> observable;
     private final NewsObserver newsObserver;
+    private final NewsObserver newsSecondObserver;
 
     public NewsService() {
         ZookeeperConf zookeeperConf = new ZookeeperConf(getZkConnectionString(), RETRY_TIMES, RETRY_MS_SLEEP);
@@ -30,6 +31,9 @@ public class NewsService {
 
         newsObserver = new NewsObserver();
         observable.registerObserver(newsObserver);
+
+        newsSecondObserver = new NewsObserver();
+        observable.registerObserver(newsSecondObserver);
     }
 
     private static String getZkConnectionString() {
@@ -40,6 +44,10 @@ public class NewsService {
 
     public NewsObserver getNewsObserver() {
         return newsObserver;
+    }
+
+    public NewsObserver getNewsSecondObserver() {
+        return newsSecondObserver;
     }
 
     public void publish(News news) {
