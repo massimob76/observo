@@ -62,53 +62,48 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
     @Override
     public void registerObserver(Observer<T> observer) {
-        try {
-            // 1. acquire lock
-            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
-            if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
-            }
 
-            // 2. create observer if does not exists
-            String childPath = generateUniqueChildPath();
-            ObserverWatcher observerWatcher = new ObserverWatcher(client, path, childPath, observer, dataType);
+        lockedBlock(() -> {
 
-            // 3. set watcher on data
-            observers.put(observer, observerWatcher);
-            client.getData().usingWatcher(observerWatcher).forPath(path);
-
-            LOGGER.debug("{} registered", observer);
-
-        } catch(Exception e) {
-            LOGGER.error("Exception while registering observer: {} {}", observer, e);
-
-        } finally {
             try {
-                // 4. release lock
-                lock.release();
-            } catch (Exception e) {
-                LOGGER.error("Exception while releasing the lock: {}", e);
+
+                // create observer if does not exists
+                String childPath = generateUniqueChildPath();
+
+                // create and set watcher
+                ObserverWatcher observerWatcher = new ObserverWatcher(client, path, childPath, observer, dataType);
+                observers.put(observer, observerWatcher);
+
+                LOGGER.debug("{} registered", observer);
+
+            } catch(Exception e) {
+                LOGGER.error("Exception while registering observer: {} {}", observer, e);
             }
-        }
+
+        });
 
     }
 
     @Override
     public void unregisterObserver(Observer<T> observer) {
-        try {
-            // 1. acquire lock
-            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
-            if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
-            }
+        lockedBlock(() -> unregistering(observer));
+    }
 
-            // 2. delete observer node
+    @Override
+    public void unregisterAllObservers() {
+        lockedBlock(() -> observers.keySet().forEach(observer -> unregistering(observer)));
+    }
+
+    private void unregistering(Observer observer) {
+        try {
+
+            // delete observer node
             ObserverWatcher observerWatcher = observers.remove(observer);
             if (observerWatcher == null) {
-                LOGGER.error("the observer {} was found within the list of registered observers {}", observer, observers.keySet());
+                LOGGER.error("the observer {} was not found within the list of registered observers {}", observer, observers.keySet());
 
             } else {
-                // 3. disable watcher
+                // disable watcher
                 observerWatcher.disable();
             }
 
@@ -116,21 +111,8 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
         } catch(Exception e) {
             LOGGER.error("Exception while unregistering observer: {} {}", observer, e);
-
-        } finally {
-            try {
-                // 4. release lock
-                lock.release();
-            } catch (Exception e) {
-                LOGGER.error("Exception while releasing the lock: {}", e);
-            }
         }
 
-    }
-
-    @Override
-    public void unregisterAllObservers() {
-        observers.keySet().forEach(observer -> unregisterObserver(observer));
     }
 
     @Override
@@ -140,44 +122,60 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
     @Override
     public void notifyObservers(T data) {
+
+        lockedBlock(() -> {
+
+            try {
+
+                // get children and set watchers
+                List<String> children = client.getChildren().forPath(observersPath);
+                LOGGER.debug("childrens: {}", children);
+
+                CountDownLatch latch = new CountDownLatch(children.size());
+                CuratorWatcher childNotifiedWatcher = event -> {
+                    LOGGER.debug("child data updated: {}", event);
+                    latch.countDown();
+                };
+
+                for (String child: children) {
+                    client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + child);
+                }
+
+                // update data
+                client.setData().forPath(path, Serializer.serialize(data));
+
+                // 4. await for all the child watchers to fire
+                boolean notified = latch.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
+                if (notified) {
+                    LOGGER.info("observers were successfully notified");
+                } else {
+                    LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
+                }
+
+            } catch(Exception e) {
+                LOGGER.error("Exception while notifying observers: {}", e);
+            }
+
+        });
+    }
+
+    private void lockedBlock(Runnable runnable) {
         try {
-            // 1. acquire lock
+            // acquire lock
             boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
             if (!acquired) {
                 LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
             }
 
-            // 2. get children and set watchers
-            List<String> children = client.getChildren().forPath(observersPath);
-            LOGGER.debug("childrens: {}", children);
+            // run
+            runnable.run();
 
-            CountDownLatch latch = new CountDownLatch(children.size());
-            CuratorWatcher childNotifiedWatcher = event -> {
-                LOGGER.debug("child data updated: {}", event);
-                latch.countDown();
-            };
-
-            for (String child: children) {
-                client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + child);
-            }
-
-            // 3. update data
-            client.setData().forPath(path, Serializer.serialize(data));
-
-            // 4. await for all the child watchers to fire
-            boolean notified = latch.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
-            if (notified) {
-                LOGGER.info("observers were successfully notified");
-            } else {
-                LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
-            }
-
-        } catch(Exception e) {
-            LOGGER.error("Exception while notifying observers: {}", e);
+        } catch (Exception e) {
+            LOGGER.error("Exception while acquiring the lock: {}", e);
 
         } finally {
             try {
-                // 5. release lock
+                // release lock
                 lock.release();
             } catch (Exception e) {
                 LOGGER.error("Exception while releasing the lock: {}", e);

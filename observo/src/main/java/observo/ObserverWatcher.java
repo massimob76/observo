@@ -28,6 +28,11 @@ public class ObserverWatcher<T extends Serializable> implements CuratorWatcher {
         this.observer = observer;
         this.dataType = dataType;
         createNodePath();
+        setWatcherOnData();
+    }
+
+    private void setWatcherOnData() throws Exception {
+        client.getData().usingWatcher(this).forPath(path);
     }
 
     public void disable() throws Exception {
