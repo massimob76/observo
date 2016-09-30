@@ -1,10 +1,9 @@
 package observoexample;
 
 import observoexample.news.News;
-import observoexample.utils.DockerInterface;
 import observoexample.server.ServerClient;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import observoexample.utils.DockerInterface;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -15,20 +14,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class NewsPropagatationITest {
 
-    private static final int NO_OF_SERVERS = 3;
-    private static DockerInterface dockerInterface;
     private static ServerClient serverClient;
 
-    @BeforeClass
-    public static void startServers() throws IOException, InterruptedException {
-        dockerInterface = new DockerInterface();
-        dockerInterface.startEnvironment(NO_OF_SERVERS);
-        serverClient = new ServerClient(dockerInterface.getServerConnUrls());
-    }
-
-    @AfterClass
-    public static void stopServers() throws IOException, InterruptedException {
-        dockerInterface.stopEnvironment();
+    @Before
+    public void setUp() {
+        serverClient = new ServerClient(DockerInterface.getServerConnUrls());
     }
 
     @Test

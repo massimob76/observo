@@ -14,10 +14,11 @@ public class DockerInterface {
 
     private static final String SCRIPT_NAME = "example-server.sh";
     private static final UnaryOperator<String> HOST_AND_PORT_FUNC = port -> "localhost:" + port;
+    private static final int DELAY = 1000;
 
-    private ServerConnUrls serverConnUrls;
+    private static ServerConnUrls serverConnUrls;
 
-    public void startEnvironment(int totalNoServers) throws IOException, InterruptedException {
+    public static void startEnvironment(int totalNoServers) throws IOException, InterruptedException {
         Process p = Runtime.getRuntime().exec(getScriptPath() + " start " + totalNoServers);
         p.waitFor();
 
@@ -25,9 +26,11 @@ public class DockerInterface {
         String[] hostAndPorts = Arrays.stream(ports.split(" ")).map(HOST_AND_PORT_FUNC).toArray(String[]::new);
         serverConnUrls = new ServerConnUrls(HOST_AND_PORT_FUNC.apply("80"), hostAndPorts);
 
+        Thread.sleep(DELAY);
+
     }
 
-    public void stopEnvironment() throws IOException, InterruptedException {
+    public static void stopEnvironment() throws IOException, InterruptedException {
         String script = getScriptPath();
 
         Process p = Runtime.getRuntime().exec(script + " stop");
@@ -35,7 +38,7 @@ public class DockerInterface {
         serverConnUrls = null;
     }
 
-    public void startSpecificServer(int serverNo) throws IOException, InterruptedException {
+    public static void startSpecificServer(int serverNo) throws IOException, InterruptedException {
         Process p = Runtime.getRuntime().exec(getScriptPath() + " startSpecificServer " + serverNo);
         p.waitFor();
 
@@ -44,21 +47,21 @@ public class DockerInterface {
         serverConnUrls.updateServerInstanceUrl(serverNo, hostPort);
     }
 
-    public void stopSpecificServer(int serverNo) throws IOException, InterruptedException {
+    public static void stopSpecificServer(int serverNo) throws IOException, InterruptedException {
         Process p = Runtime.getRuntime().exec(getScriptPath() + " stopSpecificServer " + serverNo);
         p.waitFor();
     }
 
-    public ServerConnUrls getServerConnUrls() {
+    public static ServerConnUrls getServerConnUrls() {
         return serverConnUrls;
     }
 
-    private String getScriptPath() {
-        URL resource = this.getClass().getClassLoader().getResource(SCRIPT_NAME);
+    private static String getScriptPath() {
+        URL resource = DockerInterface.class.getClassLoader().getResource(SCRIPT_NAME);
         return resource.getPath();
     }
 
-    private String getLastLine(InputStream inputStream) throws IOException {
+    private static String getLastLine(InputStream inputStream) throws IOException {
         String last = null;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
             String temp;

@@ -30,3 +30,8 @@ task buildDockerImage(type:Exec, dependsOn: distTar) {
     group 'Docker'
     commandLine 'docker', 'build', '-t', 'observo-example', '.'
 }
+
+test {
+    include "observoexample/TestSuite*"
+    dependsOn buildDockerImage
+}

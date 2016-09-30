@@ -2,7 +2,7 @@
 
 function startServers {
     noOfServers=$1
-    docker-compose up -d --build
+    docker-compose up -d
     docker-compose scale server=$noOfServers
 
     ports=""
