@@ -23,7 +23,6 @@ dependencies {
     compile 'org.eclipse.jetty:jetty-server:9.4.0.M1'
     compile 'org.eclipse.jetty:jetty-servlet:9.4.0.M1'
     testCompile 'junit:junit:4.12'
-//    testCompile 'com.fasterxml.jackson.core:jackson-databind:2.8.3'
 
 }
 
