@@ -91,7 +91,9 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
     @Override
     public void unregisterAllObservers() {
-        lockedBlock(() -> observers.keySet().forEach(observer -> unregistering(observer)));
+        if (observers.size() > 0) {
+            lockedBlock(() -> observers.keySet().forEach(observer -> unregistering(observer)));
+        }
     }
 
     private void unregistering(Observer observer) {
