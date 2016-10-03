@@ -1,5 +1,5 @@
 
 include 'observo'
-include 'observo-example'
+include 'observo-integration'
 
 rootProject.name = 'observo-root'
