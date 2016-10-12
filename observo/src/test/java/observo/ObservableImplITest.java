@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -25,6 +27,10 @@ public class ObservableImplITest {
     private static TestingServer zkServer;
     private static Observable<News> newsFeeds;
     private static ObservableFactory factory;
+
+    private TestRunnable onSuccess = new TestRunnable();
+    private TestRunnable onError = new TestRunnable();
+    private TestRunnable onCompletion = new TestRunnable();
 
     @BeforeClass
     public static void setUpClass() throws Exception {
@@ -71,45 +77,48 @@ public class ObservableImplITest {
     }
 
     @Test
-    public void notifyShouldNotifyAnEmptyNews() {
+    public void notifyShouldNotifyAnEmptyNews() throws InterruptedException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
         newsFeeds.notifyObservers();
 
-        assertThat(observer.isNotified(), is(true));
+        assertThat(observer.awaitForNotification(), is(true));
         assertThat(observer.getData(), is(nullValue()));
     }
 
     @Test
-    public void notifyShouldNotifyNews() {
+    public void notifyShouldNotifyNews() throws InterruptedException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
         News news = new News("title", "content");
         newsFeeds.notifyObservers(news);
 
-        assertThat(observer.isNotified(), is(true));
+        assertThat(observer.awaitForNotification(), is(true));
         assertThat(observer.getData(), is(news));
     }
 
     @Test
-    public void notifyShouldNotifyMultipleNews() {
+    public void notifyShouldNotifyMultipleNews() throws InterruptedException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
 
         News news1 = new News("news1", "content");
         newsFeeds.notifyObservers(news1);
+        observer.awaitForNotification();
         assertThat(observer.getData(), is(news1));
 
         News news2 = new News("news2", "content");
         newsFeeds.notifyObservers(news2);
+        observer.awaitForNotification();
         assertThat(observer.getData(), is(news2));
 
         newsFeeds.notifyObservers();
+        observer.awaitForNotification();
         assertThat(observer.getData(), is(nullValue()));
     }
 
     @Test
-    public void notifyShouldNotifyToMultipleObservers() {
+    public void notifyShouldNotifyToMultipleObservers() throws InterruptedException {
         TestObserver<News> observer1 = new TestObserver<>();
         newsFeeds.registerObserver(observer1);
 
@@ -119,12 +128,15 @@ public class ObservableImplITest {
         News news = new News("title", "content");
         newsFeeds.notifyObservers(news);
 
+        observer1.awaitForNotification();
         assertThat(observer1.getData(), is(news));
+
+        observer2.awaitForNotification();
         assertThat(observer2.getData(), is(news));
     }
 
     @Test
-    public void nofityShouldNotNotifyUnregisteredObservers() {
+    public void notifyShouldNotNotifyUnregisteredObservers() throws InterruptedException {
         TestObserver<News> observer1 = new TestObserver<>();
         newsFeeds.registerObserver(observer1);
 
@@ -134,27 +146,51 @@ public class ObservableImplITest {
 
         newsFeeds.notifyObservers();
 
-        assertThat(observer1.isNotified(), is(true));
-        assertThat(observer2.isNotified(), is(false));
+        assertThat(observer1.awaitForNotification(), is(true));
+        assertThat(observer2.awaitForNotification(), is(false));
+    }
+
+    private static class TestRunnable implements Runnable {
+
+        private CountDownLatch latch = new CountDownLatch(1);
+
+        public void await() throws InterruptedException {
+            latch.await(1, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void run() {
+            latch.countDown();
+        }
     }
 
     private static class TestObserver<T> implements Observer<T> {
 
         private volatile T data;
-        private volatile boolean notified = false;
+        private CountDownLatch notified;
+
+        public TestObserver() {
+            resetNotified();
+        }
 
         @Override
         public void update(T data) {
             this.data = data;
-            this.notified = true;
+            this.notified.countDown();
         }
 
         public T getData() {
             return data;
         }
 
-        public boolean isNotified() {
-            return notified;
+        public boolean awaitForNotification() throws InterruptedException {
+            boolean isNotified = notified.await(500, TimeUnit.MILLISECONDS);
+            resetNotified();
+            return isNotified;
+        }
+
+        private void resetNotified() {
+            notified = new CountDownLatch(1);
         }
     }
 

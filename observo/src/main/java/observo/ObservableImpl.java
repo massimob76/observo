@@ -1,10 +1,10 @@
 package observo;
 
 import observo.conf.ObservoConf;
+import observo.lock.DistributedLock;
 import observo.utils.Serializer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
-import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreMutex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,8 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class ObservableImpl<T extends Serializable> implements Observable<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ObservableImpl.class);
@@ -26,7 +24,7 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     private final String observersPath;
     private final Class<T> dataType;
     private final Map<Observer<T>, ObserverWatcher> observers = new ConcurrentHashMap<>();
-    private final InterProcessSemaphoreMutex lock;
+    private final DistributedLock distributedLock;
 
     public ObservableImpl(CuratorFramework client, ObservoConf observoConf, String hostname, String path, Class<T> dataType) {
         this.client = client;
@@ -35,7 +33,7 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
         this.path = path;
         this.observersPath = path + "/observers";
         this.dataType = dataType;
-        this.lock = new InterProcessSemaphoreMutex(client, path + "/lock");
+        this.distributedLock = new DistributedLock(client, path + "/lock", observoConf.getLockTimeoutMs());
         createObserversPathIfItDoesNotExists();
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -63,7 +61,7 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     @Override
     public void registerObserver(Observer<T> observer) {
 
-        lockedBlock(() -> {
+        distributedLock.lockedBlock(() -> {
 
             try {
 
@@ -86,13 +84,13 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
     @Override
     public void unregisterObserver(Observer<T> observer) {
-        lockedBlock(() -> unregistering(observer));
+        distributedLock.lockedBlock(() -> unregistering(observer));
     }
 
     @Override
     public void unregisterAllObservers() {
         if (observers.size() > 0) {
-            lockedBlock(() -> observers.keySet().forEach(observer -> unregistering(observer)));
+            distributedLock.lockedBlock(() -> observers.keySet().forEach(observer -> unregistering(observer)));
         }
     }
 
@@ -124,69 +122,70 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
     @Override
     public void notifyObservers(T data) {
-
-        lockedBlock(() -> {
-
-            try {
-
-                // get children and set watchers
-                List<String> children = client.getChildren().forPath(observersPath);
-                LOGGER.debug("childrens: {}", children);
-
-                CountDownLatch latch = new CountDownLatch(children.size());
-                CuratorWatcher childNotifiedWatcher = event -> {
-                    LOGGER.debug("child data updated: {}", event);
-                    latch.countDown();
-                };
-
-                for (String child: children) {
-                    client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + child);
-                }
-
-                // update data
-                client.setData().forPath(path, Serializer.serialize(data));
-
-                // 4. await for all the child watchers to fire
-                boolean notified = latch.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
-                if (notified) {
-                    LOGGER.info("observers were successfully notified");
-                } else {
-                    LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
-                }
-
-            } catch(Exception e) {
-                LOGGER.error("Exception while notifying observers: {}", e);
-            }
-
-        });
+        notifyObservers(data, null, null, null);
     }
 
-    private void lockedBlock(Runnable runnable) {
+    @Override
+    public void notifyObservers(Runnable onSuccess, Runnable onError, Runnable onCompletion) {
+        notifyObservers(null, onSuccess, onError, onCompletion);
+    }
+
+    @Override
+    public void notifyObservers(T data, Runnable onSuccess, Runnable onError, Runnable onCompletion) {
+
+        distributedLock.acquireLock();
+
         try {
-            // acquire lock
-            boolean acquired = lock.acquire(observoConf.getLockTimeoutMs(), TimeUnit.MILLISECONDS);
-            if (!acquired) {
-                LOGGER.error("could not acquire the lock within {} ms", observoConf.getLockTimeoutMs());
+
+            // get children and set watchers
+            List<String> children = client.getChildren().forPath(observersPath);
+            LOGGER.debug("childrens: {}", children);
+
+            AfterNotificationAction afterNotificationAction = new AfterNotificationAction(
+                    children.size(),
+                    observoConf.getNotificationTimeoutMs(),
+                    wrapWithReleaseLock(onSuccess),
+                    wrapWithReleaseLock(onError),
+                    onCompletion);
+
+            CuratorWatcher childNotifiedWatcher = event -> {
+                LOGGER.debug("child data updated: {}", event);
+                afterNotificationAction.observerNotified();
+            };
+
+            for (String child : children) {
+                client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + child);
             }
 
-            // run
-            runnable.run();
+            // update data
+            client.setData().forPath(path, Serializer.serialize(data));
 
-        } catch (Exception e) {
-            LOGGER.error("Exception while acquiring the lock: {}", e);
+        } catch(Exception e) {
+            LOGGER.error("exception while notifying observers: {}", e);
+            distributedLock.releaseLock();
 
-        } finally {
-            try {
-                // release lock
-                lock.release();
-            } catch (Exception e) {
-                LOGGER.error("Exception while releasing the lock: {}", e);
-            }
         }
     }
 
     private String generateUniqueChildPath() {
         return observersPath + "/" + hostname + observers.size();
+    }
+
+    private Runnable wrapWithReleaseLock(Runnable runnable) {
+        return () -> {
+            distributedLock.releaseLock();
+            safeRun(runnable);
+        };
+    }
+
+    private void safeRun(Runnable runnable) {
+        if (runnable != null) {
+            try {
+                runnable.run();
+            } catch (RuntimeException e) {
+                LOGGER.error("Runnable threw exception {}", e);
+            }
+        }
     }
 
 }

@@ -11,4 +11,8 @@ public interface Observable<T> {
     void notifyObservers();
 
     void notifyObservers(T data);
+
+    void notifyObservers(Runnable onSuccess, Runnable onError, Runnable onCompletion);
+
+    void notifyObservers(T data, Runnable onSuccess, Runnable onError, Runnable onCompletion);
 }
