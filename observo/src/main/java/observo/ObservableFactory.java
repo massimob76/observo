@@ -24,6 +24,7 @@ public class ObservableFactory {
         this.observoConf = observoConf;
         retryPolicy = new RetryNTimes(zookeeperConf.getRetryTimes(), zookeeperConf.getRetryMsSleep());
         CuratorFramework client = CuratorFrameworkFactory.builder()
+                .connectionTimeoutMs(zookeeperConf.getConnectionTimeoutMs())
                 .namespace(NAMESPACE_PREFIX + "/" + nameSpaceSuffix)
                 .connectString(zookeeperConf.getConnectString())
                 .retryPolicy(retryPolicy)

@@ -18,11 +18,12 @@ import static org.junit.Assert.assertThat;
 
 public class ObservableImplITest {
 
-    private static final long NOTIFICATION_TIMEOUT_MS = 500;
+    private static final long NOTIFICATION_TIMEOUT_MS = 300;
     private static final long LOCK_TIMEOUT_MS = 1000;
     private static final int RETRY_TIMES = 1;
     private static final int RETRY_MS_SLEEP = 10;
     private static final String NAME_SPACE_SUFFIX = "testApp";
+    private static final int CONNECTION_TIMEOUT_MS = 200;
 
     private static TestingServer zkServer;
     private static Observable<News> newsFeeds;
@@ -35,7 +36,7 @@ public class ObservableImplITest {
     @BeforeClass
     public static void setUpClass() throws Exception {
         zkServer = new TestingServer();
-        ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), RETRY_TIMES, RETRY_MS_SLEEP);
+        ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), CONNECTION_TIMEOUT_MS, RETRY_TIMES, RETRY_MS_SLEEP);
         ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
         factory = ObservableFactory.instance(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
     }
@@ -150,17 +151,44 @@ public class ObservableImplITest {
         assertThat(observer2.awaitForNotification(), is(false));
     }
 
+    @Test
+    public void callsOnSuccessAndOnCompletionAfterNotification() throws InterruptedException {
+        TestObserver<News> observer = new TestObserver<>();
+        newsFeeds.registerObserver(observer);
+        newsFeeds.notifyObservers(onSuccess, onError, onCompletion);
+
+        assertThat(observer.awaitForNotification(), is(true));
+
+        assertThat(onSuccess.waitUntilCompletion(), is(true));
+        assertThat(onError.waitUntilCompletion(), is(false));
+        assertThat(onCompletion.waitUntilCompletion(), is(true));
+    }
+
+    @Test
+    public void callsOnErrorAndOnCompletionIfSomethingGoesWrong() throws Exception {
+        TestObserver<News> observer = new TestObserver<>();
+        newsFeeds.registerObserver(observer);
+        zkServer.stop();
+        newsFeeds.notifyObservers(onSuccess, onError, onCompletion);
+
+        assertThat(onSuccess.waitUntilCompletion(), is(false));
+        assertThat(onError.waitUntilCompletion(), is(true));
+        assertThat(onCompletion.waitUntilCompletion(), is(true));
+        zkServer.start();
+
+    }
+
     private static class TestRunnable implements Runnable {
 
-        private CountDownLatch latch = new CountDownLatch(1);
+        private CountDownLatch runLatch = new CountDownLatch(1);
 
-        public void await() throws InterruptedException {
-            latch.await(1, TimeUnit.SECONDS);
+        public boolean waitUntilCompletion() throws InterruptedException {
+            return runLatch.await(500, TimeUnit.MILLISECONDS);
         }
 
         @Override
         public void run() {
-            latch.countDown();
+            runLatch.countDown();
         }
     }
 
