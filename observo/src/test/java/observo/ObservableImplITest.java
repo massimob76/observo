@@ -27,33 +27,24 @@ public class ObservableImplITest {
 
     private static TestingServer zkServer;
     private static Observable<News> newsFeeds;
-    private static ObservableFactory factory;
 
     private TestRunnable onSuccess = new TestRunnable();
     private TestRunnable onError = new TestRunnable();
     private TestRunnable onCompletion = new TestRunnable();
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         zkServer = new TestingServer();
         ZookeeperConf zookeeperConf = new ZookeeperConf(zkServer.getConnectString(), CONNECTION_TIMEOUT_MS, RETRY_TIMES, RETRY_MS_SLEEP);
         ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
-        factory = ObservableFactory.instance(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws IOException {
-        zkServer.stop();
-    }
-
-    @Before
-    public void setUp() {
+        ObservableFactory factory = new ObservableFactory(zookeeperConf, observoConf, NAME_SPACE_SUFFIX);
         newsFeeds = factory.createObservable("news", News.class);
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws IOException {
         newsFeeds.unregisterAllObservers();
+        zkServer.stop();
     }
 
     @Test
@@ -168,13 +159,14 @@ public class ObservableImplITest {
     public void callsOnErrorAndOnCompletionIfSomethingGoesWrong() throws Exception {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
+
         zkServer.stop();
+
         newsFeeds.notifyObservers(onSuccess, onError, onCompletion);
 
         assertThat(onSuccess.waitUntilCompletion(), is(false));
         assertThat(onError.waitUntilCompletion(), is(true));
         assertThat(onCompletion.waitUntilCompletion(), is(true));
-        zkServer.start();
 
     }
 

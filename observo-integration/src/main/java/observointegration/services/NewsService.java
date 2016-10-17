@@ -16,6 +16,7 @@ public class NewsService {
     private static final long NOTIFICATION_TIMEOUT_MS = 100;
     private static final long LOCK_TIMEOUT_MS = 100;
     private static final String DEFAULT_CONNECTION_STRING = "localhost:2181";
+    private static final int CONNECTION_TIMEOUT_MS = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(NewsService.class);
 
     private final Observable<News> observable;
@@ -23,10 +24,10 @@ public class NewsService {
     private final NewsObserver newsSecondObserver;
 
     public NewsService() {
-        ZookeeperConf zookeeperConf = new ZookeeperConf(getZkConnectionString(), RETRY_TIMES, RETRY_MS_SLEEP);
+        ZookeeperConf zookeeperConf = new ZookeeperConf(getZkConnectionString(), CONNECTION_TIMEOUT_MS, RETRY_TIMES, RETRY_MS_SLEEP);
         ObservoConf observoConf = new ObservoConf(NOTIFICATION_TIMEOUT_MS, LOCK_TIMEOUT_MS);
         String nameSpaceSuffix = "observo-integration";
-        ObservableFactory observableFactory = ObservableFactory.instance(zookeeperConf, observoConf, nameSpaceSuffix);
+        ObservableFactory observableFactory = new ObservableFactory(zookeeperConf, observoConf, nameSpaceSuffix);
         observable = observableFactory.createObservable("news", News.class);
 
         newsObserver = new NewsObserver();

@@ -9,16 +9,12 @@ import java.util.concurrent.TimeUnit;
 
 public class DistributedLock {
 
-    private final CuratorFramework client;
-    private final String path;
     private final long lockTimeoutMs;
     private final InterProcessSemaphoreMutex lock;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedLock.class);
 
     public DistributedLock(CuratorFramework client, String path, long lockTimeoutMs) {
-        this.client = client;
-        this.path = path;
         this.lockTimeoutMs = lockTimeoutMs;
         this.lock = new InterProcessSemaphoreMutex(client, path);
 

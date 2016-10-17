@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class ObservableImpl<T extends Serializable> implements Observable<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ObservableImpl.class);
@@ -133,28 +135,46 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     @Override
     public void notifyObservers(T data, Runnable onSuccess, Runnable onError, Runnable onCompletion) {
 
-        distributedLock.acquireLock();
+        NotificationCycle notificationCycle = new NotificationCycle(onSuccess, onError, onCompletion, distributedLock);
 
         try {
 
-            // get children and set watchers
-            List<String> children = client.getChildren().forPath(observersPath);
-            LOGGER.debug("childrens: {}", children);
+            // get observers
+            List<String> observers = client.getChildren().forPath(observersPath);
+            LOGGER.debug("observers: {}", observers);
 
-            AfterNotificationAction afterNotificationAction = new AfterNotificationAction(
-                    children.size(),
-                    observoConf.getNotificationTimeoutMs(),
-                    wrapWithReleaseLock(onSuccess),
-                    wrapWithReleaseLock(onError),
-                    onCompletion);
+            // set awaiting action for all observers to be notified
+
+            CountDownLatch remainingToNotify = new CountDownLatch(observers.size());
+
+            Runnable runnable = () -> {
+
+                boolean notifiedToAll = false;
+                try {
+                    notifiedToAll = remainingToNotify.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    LOGGER.error("Nofication was interrupted {}", e);
+                }
+
+                if (notifiedToAll) {
+                    LOGGER.info("observers were successfully notified");
+                    notificationCycle.success();
+                } else {
+                    LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
+                    notificationCycle.failure();
+                }
+
+            };
+
+            new Thread(runnable).start();
 
             CuratorWatcher childNotifiedWatcher = event -> {
                 LOGGER.debug("child data updated: {}", event);
-                afterNotificationAction.observerNotified();
+                remainingToNotify.countDown();
             };
 
-            for (String child : children) {
-                client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + child);
+            for (String observer : observers) {
+                client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + observer);
             }
 
             // update data
@@ -162,30 +182,13 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
         } catch(Exception e) {
             LOGGER.error("exception while notifying observers: {}", e);
-            distributedLock.releaseLock();
+            notificationCycle.failure();
 
         }
     }
 
     private String generateUniqueChildPath() {
         return observersPath + "/" + hostname + observers.size();
-    }
-
-    private Runnable wrapWithReleaseLock(Runnable runnable) {
-        return () -> {
-            distributedLock.releaseLock();
-            safeRun(runnable);
-        };
-    }
-
-    private void safeRun(Runnable runnable) {
-        if (runnable != null) {
-            try {
-                runnable.run();
-            } catch (RuntimeException e) {
-                LOGGER.error("Runnable threw exception {}", e);
-            }
-        }
     }
 
 }

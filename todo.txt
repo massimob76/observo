@@ -1,0 +1,7 @@
+- callback
+- notify returns boolean
+- better way to build image
+- study exception handling
+- clean up tests, reuse...
+- notification cycle test
+- loads of log errors
