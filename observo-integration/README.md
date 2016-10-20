@@ -17,7 +17,7 @@ If *zkConnectionString* is omitted it will default to *localhost:2181*
 
 ### Publish a news
 ```sh
-curl -H "Content-Type: application/json" -X POST -d '{"title":"title-new","content":"content-new"}' http://localhost:8080/news/publish
+curl -H "Content-Type: application/json" -X POST -d '{"title":"title-new","content":"content-new"}' http://localhost:8080/news/publish-asynch
 ```
 
 ### Retrieve last received news

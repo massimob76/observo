@@ -25,14 +25,14 @@ public class NewsPropagationServerFailureITest {
     public void oneServerDownDoesNotCompromiseOthers() throws IOException, InterruptedException {
         DockerInterface.stopSpecificServer(2);
         News news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNewsFromServer(1), is(news));
         assertThat(serverClient.getLatestNewsFromServer(3), is(news));
 
         DockerInterface.startSpecificServer(2);
         Thread.sleep(5000);
         news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNewsFromServer(1), is(news));
         assertThat(serverClient.getLatestNewsFromServer(2), is(news));
         assertThat(serverClient.getLatestNewsFromServer(3), is(news));

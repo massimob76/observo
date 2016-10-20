@@ -26,12 +26,6 @@ dependencies {
 
 }
 
-task buildDockerImage(type:Exec, dependsOn: distTar) {
-    group 'Docker'
-    commandLine 'docker', 'build', '-t', 'observo-integration', '.'
-}
-
 test {
     include "observointegration/TestSuite*"
-    dependsOn buildDockerImage
 }

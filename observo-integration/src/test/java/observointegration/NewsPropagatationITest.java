@@ -24,7 +24,7 @@ public class NewsPropagatationITest {
     @Test
     public void newsPropagate() throws IOException {
         News news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
         assertThat(serverClient.getLatestNewsSecond(), is(news));
     }
@@ -32,23 +32,23 @@ public class NewsPropagatationITest {
     @Test
     public void multipleNewsPropagate() throws IOException {
         News news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
 
         news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
 
         news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
 
         news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
 
         news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNews(), is(news));
 
     }
@@ -56,7 +56,7 @@ public class NewsPropagatationITest {
     @Test
     public void eachServerReceivesTheSameNews() throws IOException {
         News news = generateNewsForTesting();
-        serverClient.publishNews(news);
+        serverClient.publishNewsSynch(news);
         assertThat(serverClient.getLatestNewsFromServer(1), is(news));
         assertThat(serverClient.getLatestNewsFromServer(2), is(news));
         assertThat(serverClient.getLatestNewsFromServer(3), is(news));

@@ -168,13 +168,13 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
             new Thread(runnable).start();
 
-            CuratorWatcher childNotifiedWatcher = event -> {
-                LOGGER.debug("child data updated: {}", event);
+            CuratorWatcher observerNotifiedWatcher = event -> {
+                LOGGER.debug("observer data updated: {}", event);
                 remainingToNotify.countDown();
             };
 
             for (String observer : observers) {
-                client.getData().usingWatcher(childNotifiedWatcher).forPath(observersPath + "/" + observer);
+                client.getData().usingWatcher(observerNotifiedWatcher).forPath(observersPath + "/" + observer);
             }
 
             // update data

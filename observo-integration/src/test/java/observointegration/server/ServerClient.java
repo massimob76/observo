@@ -12,7 +12,8 @@ public class ServerClient {
     private static final String LATEST = "/news/latest";
     private static final String LATEST_SECOND = "/news/latest-second";
     private static final String ALL = "/news/all";
-    private static final String PUBLISH = "/news/publish";
+    private static final String PUBLISH_ASYNCH = "/news/publish-asynch";
+    private static final String PUBLISH_SYNCH = "/news/publish-synch";
 
     private final ServerConnUrls serverConnUrls;
 
@@ -37,10 +38,14 @@ public class ServerClient {
     }
 
     public void publishNews(News news) throws IOException {
-        simpleHttpClient.post("http://" + serverConnUrls.getLoadBalancerUrl() + PUBLISH, news);
+        simpleHttpClient.post("http://" + serverConnUrls.getLoadBalancerUrl() + PUBLISH_ASYNCH, news);
+    }
+
+    public void publishNewsSynch(News news) throws IOException {
+        simpleHttpClient.post("http://" + serverConnUrls.getLoadBalancerUrl() + PUBLISH_SYNCH, news);
     }
 
     public void publishNewsToServer(News news, int serverNo) throws IOException {
-        simpleHttpClient.post("http://" + serverConnUrls.getServerInstanceUrl(serverNo) + PUBLISH, news);
+        simpleHttpClient.post("http://" + serverConnUrls.getServerInstanceUrl(serverNo) + PUBLISH_ASYNCH, news);
     }
 }

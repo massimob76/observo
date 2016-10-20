@@ -1,13 +1,15 @@
 package observointegration.services;
 
-import observointegration.news.News;
-import observointegration.news.NewsObserver;
 import observo.Observable;
 import observo.ObservableFactory;
 import observo.conf.ObservoConf;
 import observo.conf.ZookeeperConf;
+import observointegration.news.News;
+import observointegration.news.NewsObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CountDownLatch;
 
 public class NewsService {
 
@@ -51,7 +53,20 @@ public class NewsService {
         return newsSecondObserver;
     }
 
-    public void publish(News news) {
+    public void publishAsynch(News news) {
         observable.notifyObservers(news);
+    }
+
+    public void publishSynch(News news) {
+        CountDownLatch latch = new CountDownLatch(1);
+        Runnable onSuccess = () -> LOGGER.info("news {} published to all observers", news);
+        Runnable onError = () -> LOGGER.error("failure in publishing news {}", news);
+        Runnable onCompletion = () -> latch.countDown();
+        observable.notifyObservers(news, onSuccess, onError, onCompletion);
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            LOGGER.error("Synch publishing was interrupted before all observers were notified");
+        }
     }
 }
