@@ -1,5 +1,6 @@
 package observointegration.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,7 @@ public class SimpleHttpClient {
         mapper = new ObjectMapper();
     }
 
-    public <T> T get(String url, Class<T> objType) throws IOException {
+    public <T> T get(String url, TypeReference typeReference) throws IOException {
         LOGGER.debug("Sending GET request to {} ", url);
 
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
@@ -31,7 +32,7 @@ public class SimpleHttpClient {
         int responseCode = con.getResponseCode();
         assertThat(responseCode, is(200));
 
-        T response = mapper.readValue(con.getInputStream(), objType);
+        T response = mapper.readValue(con.getInputStream(), typeReference);
 
         LOGGER.debug("Got as response {}", response);
 

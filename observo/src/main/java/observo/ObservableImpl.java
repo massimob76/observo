@@ -107,9 +107,8 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
             } else {
                 // disable watcher
                 observerWatcher.disable();
+                LOGGER.debug("{} unregistered", observer);
             }
-
-            LOGGER.debug("{} unregistered", observer);
 
         } catch(Exception e) {
             LOGGER.error("Exception while unregistering observer: {} {}", observer, e);

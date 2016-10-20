@@ -7,6 +7,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static observointegration.news.News.generateNewsForTesting;
 import static org.hamcrest.CoreMatchers.is;
@@ -30,26 +32,31 @@ public class NewsPropagatationITest {
     }
 
     @Test
-    public void multipleNewsPropagate() throws IOException {
-        News news = generateNewsForTesting();
-        serverClient.publishNewsSynch(news);
-        assertThat(serverClient.getLatestNews(), is(news));
+    public void multipleNewsPropagate_withSynchPublishing() throws IOException {
+        News news;
 
-        news = generateNewsForTesting();
-        serverClient.publishNewsSynch(news);
-        assertThat(serverClient.getLatestNews(), is(news));
+        for (int i = 0; i < 50; i++) {
+            news = generateNewsForTesting();
+            serverClient.publishNewsSynch(news);
+            assertThat(serverClient.getLatestNews(), is(news));
+        }
 
-        news = generateNewsForTesting();
-        serverClient.publishNewsSynch(news);
-        assertThat(serverClient.getLatestNews(), is(news));
+    }
 
-        news = generateNewsForTesting();
-        serverClient.publishNewsSynch(news);
-        assertThat(serverClient.getLatestNews(), is(news));
+    @Test
+    public void multipleNewsProgate_withAsynchPublishing() throws IOException, InterruptedException {
+        List<News> sent = new ArrayList<>();
+        News news;
 
-        news = generateNewsForTesting();
-        serverClient.publishNewsSynch(news);
-        assertThat(serverClient.getLatestNews(), is(news));
+        for (int i = 0; i < 50; i++) {
+            news = generateNewsForTesting();
+            serverClient.publishNewsAsynch(news);
+            sent.add(news);
+        }
+
+        Thread.sleep(500);
+        List<News> received = serverClient.getAllNews();
+        assertThat("not all news were received: sent: " + sent + " received: " + received, received.containsAll(sent), is(true));
 
     }
 

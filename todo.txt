@@ -4,3 +4,6 @@
 - empty runnable tests
 - second observer
 - asynch tests
+- better readme file
+- log default.log file not found
+- ephimeral nodes

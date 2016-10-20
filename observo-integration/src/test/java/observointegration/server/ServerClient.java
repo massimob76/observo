@@ -1,5 +1,6 @@
 package observointegration.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import observointegration.news.News;
 import observointegration.utils.SimpleHttpClient;
 
@@ -22,22 +23,22 @@ public class ServerClient {
     }
 
     public List<News> getAllNews() throws IOException {
-        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + ALL, List.class);
+        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + ALL, new TypeReference<List<News>>() {});
     }
 
     public News getLatestNews() throws IOException {
-        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST, News.class);
+        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST, new TypeReference<News>() {});
     }
 
     public News getLatestNewsSecond() throws IOException {
-        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST_SECOND, News.class);
+        return simpleHttpClient.get("http://" + serverConnUrls.getLoadBalancerUrl() + LATEST_SECOND, new TypeReference<News>() {});
     }
 
     public News getLatestNewsFromServer(int serverNo) throws IOException {
-        return simpleHttpClient.get("http://" + serverConnUrls.getServerInstanceUrl(serverNo) + LATEST, News.class);
+        return simpleHttpClient.get("http://" + serverConnUrls.getServerInstanceUrl(serverNo) + LATEST, new TypeReference<News>() {});
     }
 
-    public void publishNews(News news) throws IOException {
+    public void publishNewsAsynch(News news) throws IOException {
         simpleHttpClient.post("http://" + serverConnUrls.getLoadBalancerUrl() + PUBLISH_ASYNCH, news);
     }
 
