@@ -152,7 +152,7 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
                 try {
                     notifiedToAll = remainingToNotify.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                    LOGGER.error("Nofication was interrupted {}", e);
+                    LOGGER.error("Nofication was interrupted", e);
                 }
 
                 if (notifiedToAll) {

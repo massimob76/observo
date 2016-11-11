@@ -7,3 +7,6 @@
 - better readme file
 - log default.log file not found
 - ephimeral nodes
+- when unregistering remove node
+- CompletableFuture
+- java.time.Clock for time testing
