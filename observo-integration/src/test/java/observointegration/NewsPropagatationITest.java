@@ -44,13 +44,13 @@ public class NewsPropagatationITest {
     }
 
     @Test
-    public void multipleNewsProgate_withAsynchPublishing() throws IOException, InterruptedException {
+    public void multipleNewsProgate_withAsyncPublishing() throws IOException, InterruptedException {
         List<News> sent = new ArrayList<>();
         News news;
 
         for (int i = 0; i < 50; i++) {
             news = generateNewsForTesting();
-            serverClient.publishNewsAsynch(news);
+            serverClient.publishNewsAsync(news);
             sent.add(news);
         }
 

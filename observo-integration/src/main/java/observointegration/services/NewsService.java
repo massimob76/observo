@@ -53,7 +53,7 @@ public class NewsService {
         return newsSecondObserver;
     }
 
-    public void publishAsynch(News news) {
+    public void publishAsync(News news) {
         observable.notifyObservers(news);
     }
 

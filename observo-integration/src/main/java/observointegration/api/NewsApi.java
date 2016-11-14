@@ -48,11 +48,11 @@ public class NewsApi {
     }
 
     @POST
-    @Path("/publish-asynch")
+    @Path("/publish-async")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response publishNewsAsynch(News news) {
-        LOGGER.debug("called publishNewsAsynch...");
-        newsService.publishAsynch(news);
+    public Response publishNewsAsync(News news) {
+        LOGGER.debug("called publishNewsAsync...");
+        newsService.publishAsync(news);
         return Response.ok().build();
     }
 

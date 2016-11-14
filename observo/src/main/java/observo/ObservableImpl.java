@@ -12,9 +12,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class ObservableImpl<T extends Serializable> implements Observable<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ObservableImpl.class);
@@ -117,24 +115,26 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
     }
 
     @Override
-    public void notifyObservers() {
+    public void notifyObservers() throws InterruptedException, ExecutionException, TimeoutException {
         notifyObservers(null);
     }
 
     @Override
-    public void notifyObservers(T data) {
-        notifyObservers(data, null, null, null);
+    public void notifyObservers(T data) throws InterruptedException, ExecutionException, TimeoutException {
+        AsyncTask asyncTask = notifyObserversAsync(data);
+        asyncTask.join(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public void notifyObservers(Runnable onSuccess, Runnable onError, Runnable onCompletion) {
-        notifyObservers(null, onSuccess, onError, onCompletion);
+    public AsyncTask notifyObserversAsync() {
+        return notifyObserversAsync(null);
     }
 
     @Override
-    public void notifyObservers(T data, Runnable onSuccess, Runnable onError, Runnable onCompletion) {
+    public AsyncTask notifyObserversAsync(T data) {
 
-        NotificationCycle notificationCycle = new NotificationCycle(onSuccess, onError, onCompletion, distributedLock);
+        AsyncTaskImpl asyncTask = new AsyncTaskImpl();
+        distributedLock.acquireLock();
 
         try {
 
@@ -151,16 +151,23 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
                 boolean notifiedToAll = false;
                 try {
                     notifiedToAll = remainingToNotify.await(observoConf.getNotificationTimeoutMs(), TimeUnit.MILLISECONDS);
-                } catch (InterruptedException e) {
-                    LOGGER.error("Nofication was interrupted", e);
-                }
 
-                if (notifiedToAll) {
-                    LOGGER.info("observers were successfully notified");
-                    notificationCycle.success();
-                } else {
-                    LOGGER.error("could not notify all the observers within {} ms", observoConf.getNotificationTimeoutMs());
-                    notificationCycle.failure();
+                    if (notifiedToAll) {
+                        LOGGER.info("observers were successfully notified");
+                        distributedLock.releaseLock();
+                        asyncTask.completeSuccessfully();
+
+                    } else {
+                        String timeoutMsg = "could not notify all the observers within " + observoConf.getNotificationTimeoutMs() + " ms";
+                        LOGGER.error(timeoutMsg);
+                        asyncTask.completeExceptionally(new TimeoutException(timeoutMsg));
+                    }
+
+                } catch (InterruptedException e) {
+                    LOGGER.error("Notification was interrupted", e);
+                    Thread.currentThread().interrupt();
+                    asyncTask.completeExceptionally(e);
+
                 }
 
             };
@@ -181,9 +188,12 @@ public class ObservableImpl<T extends Serializable> implements Observable<T> {
 
         } catch(Exception e) {
             LOGGER.error("exception while notifying observers: {}", e);
-            notificationCycle.failure();
+            asyncTask.completeExceptionally(e);
 
         }
+
+        return asyncTask;
+
     }
 
     private String generateUniqueChildPath() {

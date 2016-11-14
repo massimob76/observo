@@ -1,5 +1,8 @@
 package observo;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
 public interface Observable<T> {
 
     void registerObserver(Observer<T> observer);
@@ -8,11 +11,11 @@ public interface Observable<T> {
 
     void unregisterAllObservers();
 
-    void notifyObservers();
+    void notifyObservers() throws InterruptedException, ExecutionException, TimeoutException;
 
-    void notifyObservers(T data);
+    void notifyObservers(T data) throws InterruptedException, ExecutionException, TimeoutException;
 
-    void notifyObservers(Runnable onSuccess, Runnable onError, Runnable onCompletion);
+    AsyncTask notifyObserversAsync();
 
-    void notifyObservers(T data, Runnable onSuccess, Runnable onError, Runnable onCompletion);
+    AsyncTask notifyObserversAsync(T data);
 }

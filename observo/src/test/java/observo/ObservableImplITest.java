@@ -3,15 +3,21 @@ package observo;
 import observo.conf.ObservoConf;
 import observo.conf.ZookeeperConf;
 import org.apache.curator.test.TestingServer;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
+import static java.util.Collections.emptySet;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -24,13 +30,13 @@ public class ObservableImplITest {
     private static final int RETRY_MS_SLEEP = 10;
     private static final String NAME_SPACE_SUFFIX = "testApp";
     private static final int CONNECTION_TIMEOUT_MS = 200;
+    private static final News TEST_NEWS = new News("title", "content");
 
     private static TestingServer zkServer;
     private static Observable<News> newsFeeds;
 
-    private TestRunnable onSuccess = new TestRunnable();
-    private TestRunnable onError = new TestRunnable();
-    private TestRunnable onCompletion = new TestRunnable();
+    private TestCompleteTask completeTask = new TestCompleteTask();
+    private TestErrorTask errorTask = new TestErrorTask();
 
     @Before
     public void setUp() throws Exception {
@@ -69,48 +75,71 @@ public class ObservableImplITest {
     }
 
     @Test
-    public void notifyShouldNotifyAnEmptyNews() throws InterruptedException {
+    public void unregisterAllObserversShouldUnregisterAllObservers() {
+        Observer<News> observer1 = data -> {};
+        Observer<News> observer2 = data -> {};
+        newsFeeds.registerObserver(observer1);
+        newsFeeds.registerObserver(observer2);
+        newsFeeds.unregisterAllObservers();
+        assertThat(((ObservableImpl)newsFeeds).getObservers(), is(emptySet()));
+
+    }
+
+    @Test
+    public void notifyObserversAsyncShouldNotifyAsynchroneously() throws InterruptedException {
+        TestObserver<News> observer = new TestObserver<>();
+        newsFeeds.registerObserver(observer);
+        newsFeeds.notifyObserversAsync();
+
+        assertThat(observer.awaitForNotification(), is(true));
+    }
+
+    @Test
+    public void notifyObserversAsyncShouldNotifyDataAsynchroneously() throws InterruptedException {
+        TestObserver<News> observer = new TestObserver<>();
+        newsFeeds.registerObserver(observer);
+        newsFeeds.notifyObserversAsync(TEST_NEWS);
+
+        assertThat(observer.awaitForNotification(), is(true));
+        assertThat(observer.getData(), is(TEST_NEWS));
+    }
+
+    @Test
+    public void notifyObserversShouldNotifySynchroneously() throws InterruptedException, ExecutionException, TimeoutException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
         newsFeeds.notifyObservers();
-
-        assertThat(observer.awaitForNotification(), is(true));
-        assertThat(observer.getData(), is(nullValue()));
+        assertThat(observer.isNotified(), is(true));
     }
 
     @Test
-    public void notifyShouldNotifyNews() throws InterruptedException {
+    public void notifyObserversShouldNotifyDataSynchroneously() throws InterruptedException, ExecutionException, TimeoutException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
-        News news = new News("title", "content");
-        newsFeeds.notifyObservers(news);
-
-        assertThat(observer.awaitForNotification(), is(true));
-        assertThat(observer.getData(), is(news));
+        newsFeeds.notifyObservers(TEST_NEWS);
+        assertThat(observer.isNotified(), is(true));
+        assertThat(observer.getData(), is(TEST_NEWS));
     }
 
     @Test
-    public void notifyShouldNotifyMultipleNews() throws InterruptedException {
+    public void notifyObserversShouldNotifyMultipleNews() throws InterruptedException, TimeoutException, ExecutionException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
 
         News news1 = new News("news1", "content");
         newsFeeds.notifyObservers(news1);
-        observer.awaitForNotification();
         assertThat(observer.getData(), is(news1));
 
         News news2 = new News("news2", "content");
         newsFeeds.notifyObservers(news2);
-        observer.awaitForNotification();
         assertThat(observer.getData(), is(news2));
 
         newsFeeds.notifyObservers();
-        observer.awaitForNotification();
         assertThat(observer.getData(), is(nullValue()));
     }
 
     @Test
-    public void notifyShouldNotifyToMultipleObservers() throws InterruptedException {
+    public void notifyShouldNotifyToMultipleObservers() throws InterruptedException, TimeoutException, ExecutionException {
         TestObserver<News> observer1 = new TestObserver<>();
         newsFeeds.registerObserver(observer1);
 
@@ -120,15 +149,12 @@ public class ObservableImplITest {
         News news = new News("title", "content");
         newsFeeds.notifyObservers(news);
 
-        observer1.awaitForNotification();
         assertThat(observer1.getData(), is(news));
-
-        observer2.awaitForNotification();
         assertThat(observer2.getData(), is(news));
     }
 
     @Test
-    public void notifyShouldNotNotifyUnregisteredObservers() throws InterruptedException {
+    public void notifyShouldNotNotifyUnregisteredObservers() throws InterruptedException, TimeoutException, ExecutionException {
         TestObserver<News> observer1 = new TestObserver<>();
         newsFeeds.registerObserver(observer1);
 
@@ -138,39 +164,40 @@ public class ObservableImplITest {
 
         newsFeeds.notifyObservers();
 
-        assertThat(observer1.awaitForNotification(), is(true));
-        assertThat(observer2.awaitForNotification(), is(false));
+        assertThat(observer1.isNotified(), is(true));
+        assertThat(observer2.isNotified(), is(false));
     }
 
     @Test
-    public void callsOnSuccessAndOnCompletionAfterNotification() throws InterruptedException {
+    public void executesCompleteTaskAfterNotification() throws InterruptedException {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
-        newsFeeds.notifyObservers(onSuccess, onError, onCompletion);
+        newsFeeds.notifyObserversAsync()
+                .whenComplete(completeTask)
+                .whenError(errorTask);
 
-        assertThat(observer.awaitForNotification(), is(true));
-
-        assertThat(onSuccess.waitUntilCompletion(), is(true));
-        assertThat(onError.waitUntilCompletion(), is(false));
-        assertThat(onCompletion.waitUntilCompletion(), is(true));
+        assertThat(completeTask.waitUntilCompletion(), is(true));
+        assertThat(errorTask.waitUntilCompletion(), is(false));
     }
 
     @Test
-    public void callsOnErrorAndOnCompletionIfSomethingGoesWrong() throws Exception {
+    public void executesErrorTaskIfSomethingGoesWrong() throws Exception {
         TestObserver<News> observer = new TestObserver<>();
         newsFeeds.registerObserver(observer);
 
         zkServer.stop();
 
-        newsFeeds.notifyObservers(onSuccess, onError, onCompletion);
+        newsFeeds.registerObserver(observer);
+        newsFeeds.notifyObserversAsync()
+                .whenComplete(completeTask)
+                .whenError(errorTask);
 
-        assertThat(onSuccess.waitUntilCompletion(), is(false));
-        assertThat(onError.waitUntilCompletion(), is(true));
-        assertThat(onCompletion.waitUntilCompletion(), is(true));
-
+        assertThat(completeTask.waitUntilCompletion(), is(false));
+        assertThat(errorTask.waitUntilCompletion(), is(true));
+        assertThat(errorTask.getThrowable().getMessage(), is("KeeperErrorCode = ConnectionLoss"));
     }
 
-    private static class TestRunnable implements Runnable {
+    private static class TestCompleteTask implements Runnable {
 
         private CountDownLatch runLatch = new CountDownLatch(1);
 
@@ -181,6 +208,26 @@ public class ObservableImplITest {
         @Override
         public void run() {
             runLatch.countDown();
+        }
+    }
+
+    private static class TestErrorTask implements Consumer<Throwable> {
+
+        private CountDownLatch runLatch = new CountDownLatch(1);
+        private Throwable throwable = null;
+
+        public boolean waitUntilCompletion() throws InterruptedException {
+            return runLatch.await(500, TimeUnit.MILLISECONDS);
+        }
+
+        @Override
+        public void accept(Throwable throwable) {
+            this.throwable = throwable;
+            runLatch.countDown();
+        }
+
+        public Throwable getThrowable() {
+            return throwable;
         }
     }
 
@@ -207,6 +254,10 @@ public class ObservableImplITest {
             boolean isNotified = notified.await(500, TimeUnit.MILLISECONDS);
             resetNotified();
             return isNotified;
+        }
+
+        public boolean isNotified() {
+            return notified.getCount() == 0;
         }
 
         private void resetNotified() {
